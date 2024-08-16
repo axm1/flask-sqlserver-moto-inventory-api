@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda de Motos</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head>
+<body>
+    <!-- Encabezado -->
+    <header>
+        <h1>Motos Rail</h1>
+        <br>
+        <nav>
+            <ul>
+                <li><a href="#home">Inicio</a></li>
+                <li><a href="#productos">Productos</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Sección de productos -->
+    <section id="productos">
+        <h2>Catálogo de motos</h2>
+        <div class="productos-grid">
+            <div class="producto">
+                <img src="catalogo_imagenes/evo_22.jpeg" alt="Tanque Freedom">
+                <h3>Freedom Rider Evo 200cc </h3>
+                <p>Tanque 12 litros</p>
+                <p><strong>$2200</strong></p>
+                <button>Comprar</button>
+            </div>
+            <div class="producto">
+                <img src="catalogo_imagenes/navi.jpeg" alt="cadena navi">
+                <br><br>
+                <h3><br> Honda Navi</h3>
+                <br>
+                <p>Tanque 3 litros</p>
+                <p><strong>$1900</strong></p>
+                <br>
+                <button>Comprar</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de contacto -->
+    <section id="contacto">
+        <h2>Contacto</h2>
+        <form>
+            <input type="text" placeholder="Nombre">
+            <input type="email" placeholder="Correo electrónico">
+            <textarea placeholder="Mensaje"></textarea>
+            <button type="submit">Enviar</button>
+        </form>
+    </section>
+
+    <div id="chatbot">
+        <div id="chatbot-header">
+            <h3>Chatbot - Motos Rail</h3>
+            <span id="close-chatbot">×</span>
+        </div>
+        <div id="chatbot-body">
+            <div id="chatbot-messages"></div>
+        </div>
+        <div id="chatbot-footer">
+            <input type="text" id="user-input" placeholder="Escribe tu mensaje...">
+            <button id="send-btn">Enviar</button>
+        </div>
+    </div>
+    <button id="chatbot-toggle">Chat</button>
+
+<script>
+
+    let selectedQuestionNumber = null;
+    let currentStage = 'initialQuestions';
+    let maxBrands = 0;
+    let maxModels = 0;
+    let selectedBrandId = null;
+    let selectedModelId = null;
+    let initialQuestionsShown = false;
+
+    
+    document.getElementById('chatbot-toggle').addEventListener('click', function() {
+        var chatbot = document.getElementById('chatbot');
+        chatbot.style.display = chatbot.style.display === 'none' ? 'flex' : 'none';
+
+        if (chatbot.style.display === 'flex' && !initialQuestionsShown) {
+            loadInitialQuestions();
+            initialQuestionsShown = true;
+        }
+    });
+    
+    $('#close-chatbot').on('click', function() {
+        $('#chatbot').hide();
+    });
+    
+    function sendMessage() {
+        var $userInput = $('#user-input');
+        var message = $userInput.val().trim();
+        if (message) {
+            addMessage('user', message);
+            $userInput.val('');
+            handleUserInput(message);
+        }
+    }
+
+    $('#send-btn').on('click', sendMessage);
+
+    $('#user-input').on('keypress', function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    function handleUserInput(message) {
+        if (currentStage === 'chatEnded') {
+            return;
+        }
+
+        if (currentStage === 'askForContactAfterModel') {
+            handleContactChoiceAfterModel(message);
+        } else if (currentStage === 'getPhoneNumberAfterModel') {
+            handlePhoneNumber(message);
+        } else if (currentStage === 'askForContact') {
+            handleContactChoiceAfterLocation(message);
+        } else if (currentStage === 'getPhoneNumberAfterLocation') {
+            handlePhoneNumberAfterLocation(message);
+        } else if (/^\d+$/.test(message)) {
+            const messageNumber = parseInt(message, 10);
+            if (currentStage === 'initialQuestions') {
+                handleInitialQuestions(messageNumber);
+            } else if (currentStage === 'selectingBrand') {
+                handleBrandSelection(messageNumber);
+            } else if (currentStage === 'selectingModel') {
+                handleModelSelection(messageNumber);
+            }
+        } else {
+            addMessage('bot', 'Respuesta no comprendida, por favor responda con el formato solicitado.');
+        }
+    }
+
+    function handleContactChoice(choice) {
+        if (choice === '1') {
+            addMessage('bot', 'Por favor, deja tu número en el formato xxxx-xxxx');
+            currentStage = 'getPhoneNumber';
+        } else if (choice === '2') {
+            loadInitialQuestions();
+        } else {
+            addMessage('bot', 'Por favor, responde 1 para dejar tu número o 2 para volver al menú principal.');
+        }
+    }
+
+    function handlePhoneNumber(number) {
+        const phoneRegex = /^\d{4}-\d{4}$/;
+        if (phoneRegex.test(number)) {
+            addMessage('bot', 'Gracias serás contactado en tu número de teléfono por un agente en las siguientes 24 horas.');
+            currentStage = 'chatEnded';
+            disableUserInput();
+        } else {
+            addMessage('bot', 'Por favor, responde en el formato correcto (xxxx-xxxx).');
+        }
+    }
+
+    function disableUserInput() {
+        $('#user-input').prop('disabled', true);
+        $('#send-btn').prop('disabled', true);
+        addMessage('bot', 'El chat ha finalizado. Gracias por contactarnos.');
+    }
+        
+    function handleInitialQuestions(messageNumber) {
+        if (messageNumber > 0 && messageNumber <= 3) {
+            selectedQuestionNumber = messageNumber;
+    
+            if (selectedQuestionNumber === 1) {
+                loadBrands();
+            } else if (selectedQuestionNumber === 3) {
+                loadPlaces();
+            }
+        } else {
+            addMessage('bot', 'Respuesta no comprendida, por favor responda con el formato solicitado.');
+        }
+    }
+    
+    function handleContactChoiceAfterModel(choice) {
+        if (choice.toLowerCase() === '1') {
+            addMessage('bot', 'Por favor, deja tu número en el formato xxxx-xxxx');
+            currentStage = 'getPhoneNumberAfterModel';
+        } else if (choice.toLowerCase() === '2') {
+            loadInitialQuestions();
+        } else {
+            addMessage('bot', 'Por favor, responde "1" para dejar tu número o "2" para volver al menú principal.');
+        }
+    }
+    
+    function handleBrandSelection(messageNumber) {
+        if (messageNumber > 0 && messageNumber <= maxBrands) {
+            selectedBrandId = messageNumber;
+            loadModels(selectedBrandId);
+        } else {
+            addMessage('bot', `La marca seleccionada no es válida. Por favor, elige una marca entre 1 y ${maxBrands}.`);
+        }
+    }
+    
+    function handleModelSelection(messageNumber) {
+        if (messageNumber > 0 && messageNumber <= maxModels) {
+            selectedModelId = messageNumber;
+            loadPlacesForModels(selectedModelId);
+        } else {
+            addMessage('bot', `El modelo seleccionado no es válido. Por favor, elige un modelo entre 1 y ${maxModels}.`);
+        }
+    }
+    
+    function addMessage(sender, text) {
+        var messageElement = document.createElement('div');
+        messageElement.classList.add('message', sender + '-message');
+        messageElement.innerHTML = text;
+        document.getElementById('chatbot-messages').appendChild(messageElement);
+        document.getElementById('chatbot-body').scrollTop = document.getElementById('chatbot-body').scrollHeight;
+    }
+
+    function handleContactChoiceAfterLocation(choice) {
+        if (choice === '1') {
+            addMessage('bot', 'Por favor, deja tu número en el formato xxxx-xxxx');
+            currentStage = 'getPhoneNumberAfterLocation';
+        } else if (choice === '2') {
+            loadInitialQuestions();
+        } else {
+            addMessage('bot', 'Por favor, responde "1" para dejar tu número o "2" para volver al menú principal.');
+        }
+    }
+
+    function handlePhoneNumberAfterLocation(number) {
+        const phoneRegex = /^\d{4}-\d{4}$/;
+        if (phoneRegex.test(number)) {
+            addMessage('bot', 'Gracias, serás contactado en tu número de teléfono por un agente en las siguientes 24 horas.');
+            currentStage = 'chatEnded';
+            disableUserInput();
+        } else {
+            addMessage('bot', 'Por favor, responde en el formato correcto (xxxx-xxxx).');
+        }
+    }
+    
+    function loadInitialQuestions() {
+        $.ajax({
+            url: 'http://localhost:5000/preguntas_iniciales',
+            method: 'GET',
+            dataType: 'json',
+            headers: {
+                'Authorization': 'clavetoken'
+            },
+            success: function(response) {
+                let message = 'Hola, ¿En qué estás interesado?<br><ul class="chatbot-options">';
+                response.forEach(function(item) {
+                    message += `<li>${item.id_pregunta} - ${item.pregunta}</li>`;
+                });
+                message += '</ul>';
+                message += 'Escribe el número de la pregunta para obtener más información.';
+                addMessage('bot', message);
+
+                currentStage = 'initialQuestions';
+                initialQuestionsShown = true;
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al cargar las preguntas iniciales:', error);
+                addMessage('bot', 'Se produjo un error al cargar las preguntas iniciales.');
+            }
+        });
+    }
+    
+    function loadBrands() {
+        $.ajax({
+            url: 'http://localhost:5000/marcas',
+            method: 'GET',
+            dataType: 'json',
+            headers: {
+                'Authorization': 'clavetoken'
+            },
+            success: function(response) {
+                let message = 'Marcas disponibles:<br><ul class="chatbot-options">';
+                response.forEach(function(item, index) {
+                    message += `<li>${index + 1} - ${item.marca}</li>`;
+                });
+                message += '</ul>';
+                message += 'Escribe el número de la marca para obtener los modelos disponibles.';
+                addMessage('bot', message);
+    
+                maxBrands = response.length;
+                currentStage = 'selectingBrand';
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al cargar las marcas:', error);
+                addMessage('bot', 'Se produjo un error al cargar las marcas.');
+            }
+        });
+    }
+
+    function loadModels(id_marca) {
+        $.ajax({
+            url: `http://localhost:5000/modelos_por_marcas?id_marca=${id_marca}`,
+            method: 'GET',
+            dataType: 'json',
+            headers: {
+                'authorization': 'clavetoken'
+            },
+            success: function(response) {
+                console.log(response);
+                let message = 'Estos son los modelos disponibles para la marca seleccionada:<br><ul class="chatbot-options">';
+                response.forEach(function(item, index) {
+                    message += `<li>${index + 1} - ${item.modelos} <b>Precio: ${item.precio}$</b></li>`;
+                });
+                message += '</ul>';
+                message += 'Escribe el número del modelo para obtener las ubicaciones disponibles.';
+                addMessage('bot', message);
+    
+                maxModels = response.length;
+                currentStage = 'selectingModel';
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al cargar los modelos:', error);
+                addMessage('bot', 'Se produjo un error al cargar los modelos.');
+            }
+        });
+    }
+
+    function loadPlaces() {
+        $.ajax({
+            url: 'http://localhost:5000/ubicaciones',
+            method: 'GET',
+            dataType: 'json',
+            headers: {
+                'authorization': 'clavetoken'
+            },
+            success: function(response) {
+                let message = 'Estamos ubicados en las siguientes zonas del país:<br><ul class="chatbot-options">';
+                response.forEach(function(item, index) {
+                    message += `<li>${index + 1} - ${item.ubicacion}</li>`;
+                });
+                message += '</ul>';
+                message += "¿Deseas dejar tu número de teléfono para ser contactado por un asesor de ventas? Responde '1' para dejar tu número de teléfono y '2' para volver al menú principal";
+                addMessage('bot', message);
+
+                currentStage = 'askForContact';
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al cargar los lugares:', error);
+                addMessage('bot', 'Se produjo un error al cargar los lugares.');
+            }
+        });
+    }
+
+    function loadPlacesForModels(id_modelo){
+        $.ajax({
+            url: `http://127.0.0.1:5000/disponibilidad_modelo_por_ubicacion?id_modelo=${id_modelo}`,
+            method: 'GET',
+            dataType: 'json',
+            headers: {
+                'authorization': 'clavetoken'
+            },
+            success: function(response) {
+                let message = 'Estos son los lugares donde se encuentran disponibles los modelos:<br><ul class="chatbot-options">';
+                response.forEach(function(item, index) {
+                    message += `<li>Sucursal ${item.ubicacion} - <b>disponibilidad</b> de <b>${item.cantidad_disponible} motos</b></li><br>`;
+                });
+                message += '</ul>';
+                message += 'Te gustaría ser contactado por un asesor de ventas? Responde "1" para dejar tu número de teléfono y ser contactado y "2" para volver al menú principal';
+                addMessage('bot', message);
+                currentStage = 'askForContactAfterModel';
+            },
+            error: function(xhr, status, error) {
+                console.error('Error al cargar los lugares:', error);
+                addMessage('bot', 'Se produjo un error al cargar los lugares.');
+            }
+        });
+    }
+
+</script>
