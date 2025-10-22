@@ -43,3 +43,8 @@ SQL Server
 dotenv
 
 Gunicorn (for production deployment)
+
+Clone the repository
+
+git clone https://github.com/axm1/flask-sqlserver-moto-inventory-api.git
+cd flask-sqlserver-moto-inventory-a
